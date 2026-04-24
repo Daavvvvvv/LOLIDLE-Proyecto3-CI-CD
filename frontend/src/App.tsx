@@ -1,122 +1,71 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useState } from 'react';
+import './styles.css';
+import { createGame, listChampions, submitGuess } from './api/client';
+import type { ChampionListItem, GuessResponse } from './api/types';
+import { SearchBox } from './components/SearchBox';
+import { GuessTable } from './components/GuessTable';
+import { WinBanner } from './components/WinBanner';
 
-function App() {
-  const [count, setCount] = useState(0)
+export function App() {
+  const [champions, setChampions] = useState<ChampionListItem[]>([]);
+  const [gameId, setGameId] = useState<string | null>(null);
+  const [guesses, setGuesses] = useState<GuessResponse[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    listChampions().then(setChampions).catch((e) => setError(String(e)));
+    void startNewGame();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function startNewGame() {
+    setGuesses([]);
+    setError(null);
+    try {
+      const { gameId } = await createGame();
+      setGameId(gameId);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function handleGuess(championId: string) {
+    if (!gameId) return;
+    try {
+      const result = await submitGuess(gameId, championId);
+      setGuesses((prev) => [...prev, result]);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  const lastGuess = guesses[guesses.length - 1];
+  const won = lastGuess?.correct ?? false;
+  const guessedIds = new Set(guesses.map((g) => g.guess.id));
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    <div className="app">
+      <header>
+        <h1>LOLIDLE</h1>
+        <p>Adivina el campeón</p>
+      </header>
+      {error && <div className="error">{error}</div>}
+      {!won && (
+        <SearchBox
+          champions={champions}
+          excludedIds={guessedIds}
+          onSelect={handleGuess}
+          disabled={!gameId}
+        />
+      )}
+      {won && lastGuess && (
+        <WinBanner
+          attemptCount={lastGuess.attemptCount}
+          championName={lastGuess.guess.name}
+          onPlayAgain={startNewGame}
+        />
+      )}
+      <GuessTable guesses={guesses} />
+    </div>
+  );
 }
-
-export default App
