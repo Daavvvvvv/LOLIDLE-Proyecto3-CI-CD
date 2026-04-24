@@ -1,11 +1,13 @@
 export interface ChampionListItem {
   id: string;
   name: string;
+  imageKey: string;
 }
 
 export interface Champion {
   id: string;
   name: string;
+  imageKey: string;
   gender: string;
   positions: string[];
   species: string;
