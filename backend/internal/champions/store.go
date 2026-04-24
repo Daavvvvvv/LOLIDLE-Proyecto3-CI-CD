@@ -13,6 +13,7 @@ var rawData []byte
 type Champion struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
+	ImageKey    string   `json:"imageKey"`
 	Gender      string   `json:"gender"`
 	Positions   []string `json:"positions"`
 	Species     string   `json:"species"`

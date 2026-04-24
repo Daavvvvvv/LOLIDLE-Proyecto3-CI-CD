@@ -43,3 +43,18 @@ func TestStore_Random_returnsChampionFromList(t *testing.T) {
 		t.Error("expected random champion to exist in store")
 	}
 }
+
+func TestStore_ImageKey_isPopulated(t *testing.T) {
+	s, _ := NewStore()
+	ahri, ok := s.ByID("ahri")
+	if !ok {
+		t.Fatal("expected ahri")
+	}
+	if ahri.ImageKey != "Ahri" {
+		t.Errorf("ImageKey = %q, want %q", ahri.ImageKey, "Ahri")
+	}
+	leeSin, _ := s.ByID("lee-sin")
+	if leeSin.ImageKey != "LeeSin" {
+		t.Errorf("LeeSin ImageKey = %q, want %q", leeSin.ImageKey, "LeeSin")
+	}
+}

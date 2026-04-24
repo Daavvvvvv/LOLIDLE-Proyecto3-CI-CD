@@ -195,3 +195,18 @@ func TestSubmitGuess_returns409WhenAlreadyWon(t *testing.T) {
 		t.Errorf("status = %d, want 409", rr.Code)
 	}
 }
+
+func TestListChampions_includesImageKey(t *testing.T) {
+	h := newHandler(t)
+	req := httptest.NewRequest(http.MethodGet, "/api/champions", nil)
+	rr := httptest.NewRecorder()
+	h.ListChampions(rr, req)
+
+	var body []map[string]string
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body[0]["imageKey"] == "" {
+		t.Errorf("expected non-empty imageKey on first entry, got %+v", body[0])
+	}
+}

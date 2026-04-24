@@ -21,15 +21,16 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 }
 
 type championListItem struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	ImageKey string `json:"imageKey"`
 }
 
 func (h *Handler) ListChampions(w http.ResponseWriter, r *http.Request) {
 	all := h.Champions.All()
 	out := make([]championListItem, 0, len(all))
 	for _, c := range all {
-		out = append(out, championListItem{ID: c.ID, Name: c.Name})
+		out = append(out, championListItem{ID: c.ID, Name: c.Name, ImageKey: c.ImageKey})
 	}
 	writeJSON(w, http.StatusOK, out)
 }
