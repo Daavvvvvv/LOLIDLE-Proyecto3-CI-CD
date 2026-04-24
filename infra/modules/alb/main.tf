@@ -93,3 +93,24 @@ resource "aws_lb_listener_rule" "preview_green" {
     }
   }
 }
+
+# Symmetric rule so BOTH target groups are always associated with the LB.
+# Without this, after a swap where green becomes default, blue TG has no
+# listener/rule reference and ECS update-service fails with
+# "target group does not have an associated load balancer".
+resource "aws_lb_listener_rule" "preview_blue" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 101
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.blue.arn
+  }
+
+  condition {
+    http_header {
+      http_header_name = "X-Preview"
+      values           = ["blue"]
+    }
+  }
+}
