@@ -1,0 +1,80 @@
+name: CD - Dev and Staging
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+# Infra changes (terraform apply) are managed out-of-band from a workstation.
+# This workflow only ships application code: new backend image via blue/green
+# swap on ECS, and the frontend bundle via S3 sync.
+
+jobs:
+  deploy-dev:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Deploy backend (blue/green)
+        run: ./scripts/deploy-app.sh dev ${{ github.event.workflow_run.head_sha }}
+
+      - name: Build + upload frontend
+        run: |
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names lolidle-dev-alb \
+            --query 'LoadBalancers[0].DNSName' --output text)
+          BUCKET="lolidle-dev-frontend-$(aws sts get-caller-identity --query Account --output text)"
+          cd frontend
+          echo "VITE_API_BASE=http://$ALB_DNS" > .env.production
+          npm ci
+          npm run build
+          aws s3 sync dist/ "s3://$BUCKET/" --delete
+
+  deploy-staging:
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Deploy backend (blue/green)
+        run: ./scripts/deploy-app.sh staging ${{ github.event.workflow_run.head_sha }}
+
+      - name: Build + upload frontend
+        run: |
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names lolidle-staging-alb \
+            --query 'LoadBalancers[0].DNSName' --output text)
+          BUCKET="lolidle-staging-frontend-$(aws sts get-caller-identity --query Account --output text)"
+          cd frontend
+          echo "VITE_API_BASE=http://$ALB_DNS" > .env.production
+          npm ci
+          npm run build
+          aws s3 sync dist/ "s3://$BUCKET/" --delete

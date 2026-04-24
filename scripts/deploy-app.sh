@@ -12,25 +12,32 @@ IMAGE_TAG=${2:?image tag required (git sha or semver)}
 
 echo "==> Deploying $IMAGE_TAG to $ENV"
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ENV_DIR="$SCRIPT_DIR/../infra/envs/$ENV"
-
-pushd "$ENV_DIR" > /dev/null
-
-ALB_URL=$(terraform output -raw alb_url)
-LISTENER_ARN=$(terraform output -raw listener_arn)
-TG_BLUE_ARN=$(terraform output -raw tg_blue_arn)
-TG_GREEN_ARN=$(terraform output -raw tg_green_arn)
-CLUSTER=$(terraform output -raw cluster_name)
-SVC_BLUE=$(terraform output -raw service_blue)
-SVC_GREEN=$(terraform output -raw service_green)
-ECR_REPO=$(terraform output -raw ecr_repository 2>/dev/null || \
-  aws ecr describe-repositories \
-    --repository-names lolidle-backend \
-    --query 'repositories[0].repositoryUri' \
-    --output text)
-
-popd > /dev/null
+# Resolve resource identifiers from AWS API using known names. This keeps
+# the script self-contained (no dependency on local terraform state), which
+# is what CI/CD runners need — infra is managed separately (apply from a
+# workstation or a dedicated infra workflow).
+ALB_DNS=$(aws elbv2 describe-load-balancers \
+  --names "lolidle-$ENV-alb" \
+  --query 'LoadBalancers[0].DNSName' --output text)
+ALB_URL="http://$ALB_DNS"
+ALB_ARN=$(aws elbv2 describe-load-balancers \
+  --names "lolidle-$ENV-alb" \
+  --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+LISTENER_ARN=$(aws elbv2 describe-listeners \
+  --load-balancer-arn "$ALB_ARN" \
+  --query 'Listeners[?Port==`80`].ListenerArn | [0]' --output text)
+TG_BLUE_ARN=$(aws elbv2 describe-target-groups \
+  --names "lolidle-$ENV-tg-blue" \
+  --query 'TargetGroups[0].TargetGroupArn' --output text)
+TG_GREEN_ARN=$(aws elbv2 describe-target-groups \
+  --names "lolidle-$ENV-tg-green" \
+  --query 'TargetGroups[0].TargetGroupArn' --output text)
+CLUSTER="lolidle-$ENV-cluster"
+SVC_BLUE="lolidle-$ENV-blue"
+SVC_GREEN="lolidle-$ENV-green"
+ECR_REPO=$(aws ecr describe-repositories \
+  --repository-names lolidle-backend \
+  --query 'repositories[0].repositoryUri' --output text)
 
 CURRENT_TG=$(aws elbv2 describe-listeners \
   --listener-arns "$LISTENER_ARN" \
