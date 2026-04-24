@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (Go)
+    runs-on: ubuntu-latest
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:2.5.2
+        ports:
+          - 8000:8000
+    env:
+      DYNAMO_LOCAL_ENDPOINT: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+          cache-dependency-path: backend/go.sum
+
+      - name: Format check
+        run: |
+          cd backend
+          test -z "$(gofmt -l .)" || (echo "Files need formatting"; gofmt -d .; exit 1)
+
+      - name: Vet
+        run: cd backend && go vet ./...
+
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@latest
+
+      - name: Staticcheck
+        run: cd backend && staticcheck ./...
+
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+      - name: Gosec (SAST — HIGH severity)
+        run: cd backend && gosec -severity high ./...
+
+      - name: Tests with coverage
+        run: |
+          cd backend
+          # cmd/server is excluded: it's main.go wiring (no business logic)
+          go test ./internal/... -race -coverprofile=coverage.out
+          COVERAGE=$(go tool cover -func=coverage.out | awk '/total/ {print substr($3, 1, length($3)-1)}')
+          echo "Coverage: $COVERAGE%"
+          awk -v c="$COVERAGE" 'BEGIN{ if (c+0 < 80) exit 1 }'
+
+      - name: Build
+        run: cd backend && go build -o /tmp/server ./cmd/server
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.out
+
+  frontend:
+    name: Frontend (TS/React)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: cd frontend && npm ci
+
+      - name: Lint
+        run: cd frontend && npm run lint
+
+      - name: Type check
+        run: cd frontend && npx tsc --noEmit
+
+      - name: Tests with coverage
+        run: cd frontend && npm run coverage
+
+      - name: npm audit (HIGH+ blocks)
+        run: cd frontend && npm audit --audit-level=high
+
+      - name: Build
+        run: cd frontend && npm run build
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+  docker:
+    name: Docker (build + scan)
+    needs: backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: backend/Dockerfile
+
+      - name: Set up buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (load locally, no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: backend
+          load: true
+          tags: lolidle-backend:ci-${{ github.sha }}
+
+      - name: Trivy scan (CRITICAL fails)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: lolidle-backend:ci-${{ github.sha }}
+          format: table
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Configure AWS creds
+        if: github.ref == 'refs/heads/main'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        if: github.ref == 'refs/heads/main'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag + push image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          REPO="${{ steps.login-ecr.outputs.registry }}/lolidle-backend"
+          docker tag lolidle-backend:ci-${{ github.sha }} "$REPO:${{ github.sha }}"
+          docker push "$REPO:${{ github.sha }}"
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            docker tag lolidle-backend:ci-${{ github.sha }} "$REPO:${{ github.ref_name }}"
+            docker push "$REPO:${{ github.ref_name }}"
+          fi
