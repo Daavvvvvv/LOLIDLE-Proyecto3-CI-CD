@@ -53,5 +53,7 @@ func (s *Store) ByID(id string) (Champion, bool) {
 }
 
 func (s *Store) Random() Champion {
+	// #nosec G404 -- picking a game-of-the-day champion is not a
+	// security-sensitive operation; crypto/rand would be overkill.
 	return s.list[rand.IntN(len(s.list))]
 }
