@@ -1,7 +1,9 @@
 import type { Champion, Feedback, GuessResponse } from '../api/types';
+import { getPortraitUrl } from '../api/portrait';
 
 interface Props {
   guesses: GuessResponse[];
+  version: string;
 }
 
 const ATTRIBUTES: Array<keyof Feedback> = [
@@ -34,8 +36,9 @@ function cellValue(attr: keyof Feedback, guess: Champion, status: string): strin
   return Array.isArray(v) ? v.join(', ') : v;
 }
 
-export function GuessTable({ guesses }: Props) {
+export function GuessTable({ guesses, version }: Props) {
   if (guesses.length === 0) return null;
+  const newestIndex = guesses.length - 1;
   return (
     <table className="guess-table">
       <thead>
@@ -47,19 +50,39 @@ export function GuessTable({ guesses }: Props) {
         </tr>
       </thead>
       <tbody>
-        {guesses.map((g, i) => (
-          <tr key={i}>
-            <td>{g.guess.name}</td>
-            {ATTRIBUTES.map((a) => {
-              const status = g.feedback[a].status;
-              return (
-                <td key={a} className={`cell cell-${status}`}>
-                  {cellValue(a, g.guess, status)}
-                </td>
-              );
-            })}
-          </tr>
-        ))}
+        {guesses.map((g, rowIdx) => {
+          const isNewest = rowIdx === newestIndex;
+          const revealClass = isNewest ? ' cell-reveal' : '';
+          return (
+            <tr key={rowIdx}>
+              <td
+                className={`cell-portrait${revealClass}`}
+                style={isNewest ? { animationDelay: '0ms' } : undefined}
+              >
+                <img
+                  src={getPortraitUrl(version, g.guess.imageKey)}
+                  alt={g.guess.name}
+                  width={56}
+                  height={56}
+                  loading="lazy"
+                />
+                <div className="champ-name">{g.guess.name}</div>
+              </td>
+              {ATTRIBUTES.map((a, colIdx) => {
+                const status = g.feedback[a].status;
+                return (
+                  <td
+                    key={a}
+                    className={`cell cell-${status}${revealClass}`}
+                    style={isNewest ? { animationDelay: `${(colIdx + 1) * 120}ms` } : undefined}
+                  >
+                    {cellValue(a, g.guess, status)}
+                  </td>
+                );
+              })}
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
