@@ -42,4 +42,5 @@ export interface GuessResponse {
   feedback: Feedback;
   correct: boolean;
   attemptCount: number;
+  lore?: string;
 }

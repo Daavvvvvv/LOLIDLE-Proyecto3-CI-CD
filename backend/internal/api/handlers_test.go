@@ -223,3 +223,19 @@ func TestListChampions_includesImageKey(t *testing.T) {
 		t.Errorf("expected non-empty imageKey on first entry, got %+v", body[0])
 	}
 }
+
+func TestSubmitGuess_omitsLoreFieldByDefault(t *testing.T) {
+	h := newHandler(t)
+	g, _ := h.Sessions.Create("ahri")
+	body := bytes.NewBufferString(`{"championId":"ahri"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/games/"+g.ID+"/guesses", body)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("gameId", g.ID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	rr := httptest.NewRecorder()
+	h.SubmitGuess(rr, req)
+
+	if bytes.Contains(rr.Body.Bytes(), []byte(`"lore"`)) {
+		t.Errorf("expected no lore field in response, got %s", rr.Body.String())
+	}
+}

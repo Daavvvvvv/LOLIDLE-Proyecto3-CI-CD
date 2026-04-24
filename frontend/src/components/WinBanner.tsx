@@ -8,9 +8,10 @@ interface Props {
   imageKey: string;
   version: string;
   onPlayAgain: () => void;
+  lore?: string;
 }
 
-export function WinBanner({ attemptCount, championName, imageKey, version, onPlayAgain }: Props) {
+export function WinBanner({ attemptCount, championName, imageKey, version, onPlayAgain, lore }: Props) {
   useEffect(() => {
     confetti({
       particleCount: 100,
@@ -33,6 +34,7 @@ export function WinBanner({ attemptCount, championName, imageKey, version, onPla
       <p>
         El campeón era <strong>{championName}</strong>.
       </p>
+      {lore && <blockquote className="champion-lore">{lore}</blockquote>}
       <button onClick={onPlayAgain}>Jugar de nuevo</button>
     </div>
   );

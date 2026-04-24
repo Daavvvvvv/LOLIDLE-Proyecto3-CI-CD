@@ -1,19 +1,23 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"lolidle/backend/internal/champions"
 	"lolidle/backend/internal/game"
+	"lolidle/backend/internal/lore"
 	"lolidle/backend/internal/session"
 )
 
 type Handler struct {
 	Champions *champions.Store
 	Sessions  session.Store
+	Lore      *lore.Service
 }
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +72,7 @@ type guessResponse struct {
 	Feedback     game.Feedback      `json:"feedback"`
 	Correct      bool               `json:"correct"`
 	AttemptCount int                `json:"attemptCount"`
+	Lore         string             `json:"lore,omitempty"`
 }
 
 func (h *Handler) SubmitGuess(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +102,14 @@ func (h *Handler) SubmitGuess(w http.ResponseWriter, r *http.Request) {
 
 	target, _ := h.Champions.ByID(g.TargetID)
 	fb, correct := game.Compare(guess, target)
+
+	var loreText string
+	if correct && h.Lore != nil {
+		loreCtx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		loreText, _ = h.Lore.Generate(loreCtx, target.ID, target.Name)
+	}
+
 	g.Attempts++
 	if correct {
 		g.Won = true
@@ -111,5 +124,6 @@ func (h *Handler) SubmitGuess(w http.ResponseWriter, r *http.Request) {
 		Feedback:     fb,
 		Correct:      correct,
 		AttemptCount: g.Attempts,
+		Lore:         loreText,
 	})
 }

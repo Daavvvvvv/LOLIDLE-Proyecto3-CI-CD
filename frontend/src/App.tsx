@@ -69,6 +69,7 @@ export function App() {
           imageKey={lastGuess.guess.imageKey}
           version={version}
           onPlayAgain={startNewGame}
+          lore={lastGuess.lore}
         />
       )}
       <GuessTable guesses={guesses} version={version} />
