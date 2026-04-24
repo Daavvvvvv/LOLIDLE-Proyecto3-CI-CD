@@ -3,9 +3,13 @@ output "bucket_name" {
 }
 
 output "cloudfront_url" {
-  value = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+  value = "http://${aws_s3_bucket_website_configuration.frontend.website_endpoint}"
 }
 
 output "cloudfront_distribution_id" {
-  value = aws_cloudfront_distribution.frontend.id
+  value = ""
+}
+
+output "website_endpoint" {
+  value = aws_s3_bucket_website_configuration.frontend.website_endpoint
 }
