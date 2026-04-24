@@ -1,0 +1,76 @@
+name: CD - Production
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+# Prod deploys are triggered by pushing a semver tag (v1.0.0, v1.2.3, etc.).
+# The environment "prod" should be configured in GitHub with a required
+# reviewer — that is the manual approval gate before any prod deploy runs.
+#
+# Pre-requisite: prod infra must already exist (terraform apply of
+# infra/envs/prod from a workstation). This workflow ships code, not infra.
+
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Verify image tag exists in ECR
+        run: |
+          aws ecr describe-images \
+            --repository-name lolidle-backend \
+            --image-ids imageTag=${{ github.ref_name }} > /dev/null
+          echo "Image ${{ github.ref_name }} found in ECR."
+
+      - name: Deploy backend (blue/green)
+        run: ./scripts/deploy-app.sh prod ${{ github.ref_name }}
+
+      - name: Build + upload frontend
+        run: |
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names lolidle-prod-alb \
+            --query 'LoadBalancers[0].DNSName' --output text)
+          BUCKET="lolidle-prod-frontend-$(aws sts get-caller-identity --query Account --output text)"
+          cd frontend
+          echo "VITE_API_BASE=http://$ALB_DNS" > .env.production
+          npm ci
+          npm run build
+          aws s3 sync dist/ "s3://$BUCKET/" --delete
+
+  smoke-prod:
+    needs: deploy-prod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Smoke test prod endpoints
+        run: |
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names lolidle-prod-alb \
+            --query 'LoadBalancers[0].DNSName' --output text)
+          curl -fS "http://$ALB_DNS/api/health"
+          echo
+          curl -fS "http://$ALB_DNS/api/champions" | head -c 200
+          echo

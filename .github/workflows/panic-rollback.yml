@@ -1,0 +1,55 @@
+name: Panic Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options: [dev, staging, prod]
+      target_version:
+        description: 'Version to roll back to (git SHA or v*.*.* tag already in ECR)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Emergency rollback: runs scripts/deploy-app.sh against an arbitrary
+# previously-built image tag. Use from the GitHub UI: Actions ->
+# Panic Rollback -> Run workflow -> pick env + version.
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Verify target image exists in ECR
+        run: |
+          aws ecr describe-images \
+            --repository-name lolidle-backend \
+            --image-ids imageTag=${{ inputs.target_version }} > /dev/null
+          echo "Image ${{ inputs.target_version }} found in ECR."
+
+      - name: Blue/green deploy with target version
+        run: ./scripts/deploy-app.sh ${{ inputs.environment }} ${{ inputs.target_version }}
+
+      - name: Confirm rollback
+        run: |
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names lolidle-${{ inputs.environment }}-alb \
+            --query 'LoadBalancers[0].DNSName' --output text)
+          curl -fS "http://$ALB_DNS/api/health"
+          echo
+          echo "Rolled back to ${{ inputs.target_version }} on ${{ inputs.environment }}"
