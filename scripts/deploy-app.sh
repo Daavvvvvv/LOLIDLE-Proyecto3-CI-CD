@@ -67,13 +67,15 @@ CURRENT_TD=$(aws ecs describe-task-definition \
   --task-definition "$TASK_DEF_FAMILY" \
   --query 'taskDefinition' --output json)
 
-NEW_TD=$(echo "$CURRENT_TD" | jq --arg IMAGE "$ECR_REPO:$IMAGE_TAG" '
+TMP_TD=$(mktemp)
+trap 'rm -f "$TMP_TD"' EXIT
+echo "$CURRENT_TD" | jq --arg IMAGE "$ECR_REPO:$IMAGE_TAG" '
   .containerDefinitions[0].image = $IMAGE |
   {family, networkMode, containerDefinitions, requiresCompatibilities, cpu, memory, executionRoleArn, taskRoleArn}
-')
+' > "$TMP_TD"
 
-NEW_TD_ARN=$(echo "$NEW_TD" | aws ecs register-task-definition \
-  --cli-input-json file:///dev/stdin \
+NEW_TD_ARN=$(aws ecs register-task-definition \
+  --cli-input-json "file://$TMP_TD" \
   --query 'taskDefinition.taskDefinitionArn' --output text)
 echo "==> Registered task def: $NEW_TD_ARN"
 
