@@ -1,0 +1,14 @@
+# This file is intentionally NOT named backend.tf because in AWS Academy
+# we use local state per environment for simplicity. To enable remote state,
+# rename this file to backend.tf in each env/* directory and create the S3 bucket
+# + DynamoDB lock table manually first.
+#
+# terraform {
+#   backend "s3" {
+#     bucket         = "lolidle-tfstate-<unique-suffix>"
+#     key            = "envs/dev/terraform.tfstate"  # change per env
+#     region         = "us-east-1"
+#     dynamodb_table = "lolidle-tfstate-locks"
+#     encrypt        = true
+#   }
+# }
