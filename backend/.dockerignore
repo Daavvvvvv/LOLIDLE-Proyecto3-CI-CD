@@ -1,0 +1,8 @@
+.git
+*.test
+*.out
+coverage.txt
+server
+server.exe
+README.md
+docs/
