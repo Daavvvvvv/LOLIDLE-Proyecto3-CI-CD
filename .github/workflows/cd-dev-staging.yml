@@ -47,8 +47,56 @@ jobs:
           npm run build
           aws s3 sync dist/ "s3://$BUCKET/" --delete
 
-  deploy-staging:
+  e2e-dev:
     needs: deploy-dev
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Resolve dev frontend URL
+        id: urls
+        run: |
+          BUCKET="lolidle-dev-frontend-$(aws sts get-caller-identity --query Account --output text)"
+          echo "frontend=http://$BUCKET.s3-website-us-east-1.amazonaws.com" >> "$GITHUB_OUTPUT"
+
+      - name: Install Playwright
+        run: |
+          cd e2e
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run E2E tests against dev
+        env:
+          E2E_FRONTEND_URL: ${{ steps.urls.outputs.frontend }}
+        run: cd e2e && npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-dev
+          path: |
+            e2e/test-results/
+            e2e/playwright-report/
+          retention-days: 7
+
+  deploy-staging:
+    needs: e2e-dev
     runs-on: ubuntu-latest
     environment: staging
     steps:
