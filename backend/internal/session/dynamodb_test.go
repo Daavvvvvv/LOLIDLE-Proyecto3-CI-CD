@@ -115,3 +115,14 @@ func TestDynamoDBStore_Update_persistsChanges(t *testing.T) {
 		t.Error("expected Won=true")
 	}
 }
+
+func TestDynamoDBStore_Update_returnsErrNotFoundForUnknownGame(t *testing.T) {
+	client := newDynamoTestClient(t)
+	setupTable(t, client, "test-sessions-5")
+	store := NewDynamoDBStore(client, "test-sessions-5", time.Minute)
+
+	g := &Game{ID: "nonexistent", TargetID: "ahri", LastAccessed: time.Now()}
+	if err := store.Update(g); !errors.Is(err, ErrNotFound) {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}

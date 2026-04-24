@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -106,14 +107,20 @@ func itemToGame(item map[string]types.AttributeValue) (*Game, error) {
 		g.TargetID = v.Value
 	}
 	if v, ok := item["attempts"].(*types.AttributeValueMemberN); ok {
-		n, _ := strconv.Atoi(v.Value)
+		n, err := strconv.Atoi(v.Value)
+		if err != nil {
+			return nil, fmt.Errorf("attempts: %w", err)
+		}
 		g.Attempts = n
 	}
 	if v, ok := item["won"].(*types.AttributeValueMemberBOOL); ok {
 		g.Won = v.Value
 	}
 	if v, ok := item["lastAccessed"].(*types.AttributeValueMemberN); ok {
-		ts, _ := strconv.ParseInt(v.Value, 10, 64)
+		ts, err := strconv.ParseInt(v.Value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("lastAccessed: %w", err)
+		}
 		g.LastAccessed = time.Unix(ts, 0)
 	}
 	return g, nil
