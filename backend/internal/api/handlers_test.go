@@ -143,7 +143,9 @@ func TestSubmitGuess_correctChampionWinsGame(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.SubmitGuess(rr, req)
 
-	var resp struct{ Correct bool `json:"correct"` }
+	var resp struct {
+		Correct bool `json:"correct"`
+	}
 	json.Unmarshal(rr.Body.Bytes(), &resp)
 	if !resp.Correct {
 		t.Error("expected correct=true for matching guess")

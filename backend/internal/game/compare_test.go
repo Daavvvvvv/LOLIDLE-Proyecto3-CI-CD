@@ -25,14 +25,14 @@ func TestCompare_singleAttributes(t *testing.T) {
 		wantRng  Status
 	}{
 		{
-			name:     "all match",
-			guess:    target,
-			wantGen:  StatusMatch, wantSpec: StatusMatch, wantRes: StatusMatch, wantRng: StatusMatch,
+			name:    "all match",
+			guess:   target,
+			wantGen: StatusMatch, wantSpec: StatusMatch, wantRes: StatusMatch, wantRng: StatusMatch,
 		},
 		{
-			name:     "all different",
-			guess:    ch("garen", "Male", []string{"Top"}, "Human", "None", "Melee", []string{"Demacia"}, 2010),
-			wantGen:  StatusNoMatch, wantSpec: StatusNoMatch, wantRes: StatusNoMatch, wantRng: StatusNoMatch,
+			name:    "all different",
+			guess:   ch("garen", "Male", []string{"Top"}, "Human", "None", "Melee", []string{"Demacia"}, 2010),
+			wantGen: StatusNoMatch, wantSpec: StatusNoMatch, wantRes: StatusNoMatch, wantRng: StatusNoMatch,
 		},
 	}
 
@@ -59,10 +59,10 @@ func TestCompare_multiAttributes(t *testing.T) {
 	target := ch("yasuo", "Male", []string{"Mid", "Top"}, "Human", "Flow", "Melee", []string{"Ionia"}, 2013)
 
 	tests := []struct {
-		name      string
-		guess     champions.Champion
-		wantPos   Status
-		wantReg   Status
+		name    string
+		guess   champions.Champion
+		wantPos Status
+		wantReg Status
 	}{
 		{
 			name:    "exact match positions and regions",
