@@ -23,7 +23,7 @@ func newHandler(t *testing.T) *Handler {
 	}
 	return &Handler{
 		Champions: cs,
-		Sessions:  session.NewStore(time.Minute),
+		Sessions:  session.NewMemoryStore(time.Minute),
 	}
 }
 
@@ -88,7 +88,10 @@ func TestSubmitGuess_returnsFeedbackForKnownGame(t *testing.T) {
 	h := newHandler(t)
 
 	// Create game directly via Sessions to control the target
-	g := h.Sessions.Create("ahri")
+	g, err := h.Sessions.Create("ahri")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
 
 	body := bytes.NewBufferString(`{"championId":"yasuo"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/games/"+g.ID+"/guesses", body)
@@ -126,7 +129,10 @@ func TestSubmitGuess_returnsFeedbackForKnownGame(t *testing.T) {
 
 func TestSubmitGuess_correctChampionWinsGame(t *testing.T) {
 	h := newHandler(t)
-	g := h.Sessions.Create("ahri")
+	g, err := h.Sessions.Create("ahri")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
 
 	body := bytes.NewBufferString(`{"championId":"ahri"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/games/"+g.ID+"/guesses", body)
@@ -162,7 +168,10 @@ func TestSubmitGuess_returns404ForUnknownGame(t *testing.T) {
 
 func TestSubmitGuess_returns400ForUnknownChampion(t *testing.T) {
 	h := newHandler(t)
-	g := h.Sessions.Create("ahri")
+	g, err := h.Sessions.Create("ahri")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
 	body := bytes.NewBufferString(`{"championId":"nonexistent"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/games/"+g.ID+"/guesses", body)
 	rctx := chi.NewRouteContext()
@@ -179,8 +188,12 @@ func TestSubmitGuess_returns400ForUnknownChampion(t *testing.T) {
 
 func TestSubmitGuess_returns409WhenAlreadyWon(t *testing.T) {
 	h := newHandler(t)
-	g := h.Sessions.Create("ahri")
+	g, err := h.Sessions.Create("ahri")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
 	g.Won = true
+	_ = h.Sessions.Update(g)
 
 	body := bytes.NewBufferString(`{"championId":"ahri"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/games/"+g.ID+"/guesses", body)

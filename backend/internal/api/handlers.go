@@ -13,7 +13,7 @@ import (
 
 type Handler struct {
 	Champions *champions.Store
-	Sessions  *session.Store
+	Sessions  session.Store
 }
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +51,11 @@ type createGameResponse struct {
 
 func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	target := h.Champions.Random()
-	g := h.Sessions.Create(target.ID)
+	g, err := h.Sessions.Create(target.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create game")
+		return
+	}
 	writeJSON(w, http.StatusCreated, createGameResponse{GameID: g.ID})
 }
 
@@ -69,8 +73,8 @@ type guessResponse struct {
 func (h *Handler) SubmitGuess(w http.ResponseWriter, r *http.Request) {
 	gameID := chi.URLParam(r, "gameId")
 
-	g, ok := h.Sessions.Get(gameID)
-	if !ok {
+	g, err := h.Sessions.Get(gameID)
+	if err != nil {
 		writeError(w, http.StatusNotFound, "game not found or expired")
 		return
 	}
@@ -96,6 +100,10 @@ func (h *Handler) SubmitGuess(w http.ResponseWriter, r *http.Request) {
 	g.Attempts++
 	if correct {
 		g.Won = true
+	}
+	if err := h.Sessions.Update(g); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to save game state")
+		return
 	}
 
 	writeJSON(w, http.StatusOK, guessResponse{

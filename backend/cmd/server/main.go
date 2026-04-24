@@ -19,7 +19,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("load champions: %v", err)
 	}
-	ss := session.NewStore(30 * time.Minute)
+	ss := session.NewMemoryStore(30 * time.Minute)
 
 	h := &api.Handler{Champions: cs, Sessions: ss}
 
