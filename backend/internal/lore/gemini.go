@@ -29,9 +29,12 @@ func (s *Service) callGemini(ctx context.Context, championName string) (string, 
 		"Escribe una breve descripción de 2-3 frases en español sobre el campeón de League of Legends '%s', enfocándote en su lore: quién es, de dónde viene, y por qué es conocido. No reveles mecánicas de gameplay específicas. Solo el texto, sin formato Markdown.",
 		championName,
 	)
-	body, _ := json.Marshal(geminiRequest{
+	body, err := json.Marshal(geminiRequest{
 		Contents: []geminiContent{{Parts: []geminiPart{{Text: prompt}}}},
 	})
+	if err != nil {
+		return "", err
+	}
 
 	url := fmt.Sprintf("%s?key=%s", s.geminiURL, s.apiKey)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
