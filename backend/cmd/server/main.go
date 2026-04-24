@@ -48,6 +48,9 @@ func main() {
 			lo = lore.New(geminiEndpoint, os.Getenv("GEMINI_API_KEY"), cache)
 		}
 	default:
+		if backend := os.Getenv("STORE_BACKEND"); backend != "" {
+			logger.Warn("unknown STORE_BACKEND, falling back to memory store", "backend", backend)
+		}
 		ss = session.NewMemoryStore(30 * time.Minute)
 	}
 
