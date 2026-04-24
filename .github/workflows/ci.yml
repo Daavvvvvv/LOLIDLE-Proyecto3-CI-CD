@@ -123,7 +123,7 @@ jobs:
           tags: lolidle-backend:ci-${{ github.sha }}
 
       - name: Trivy scan (CRITICAL fails)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: lolidle-backend:ci-${{ github.sha }}
           format: table
