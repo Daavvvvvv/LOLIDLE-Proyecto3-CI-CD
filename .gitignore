@@ -1,0 +1,18 @@
+# Go
+backend/server
+backend/server.exe
+*.test
+*.out
+coverage.txt
+
+# Node
+frontend/node_modules
+frontend/dist
+.npm
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
