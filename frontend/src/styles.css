@@ -3,7 +3,9 @@
 body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
-  background: #0e1014;
+  background:
+    radial-gradient(ellipse at top, #1a1d2e 0%, #0e1014 60%);
+  background-attachment: fixed;
   color: #e6e6e6;
   min-height: 100vh;
 }
@@ -24,6 +26,7 @@ header h1 {
   font-size: 3rem;
   letter-spacing: 0.15em;
   color: #c8aa6e;
+  text-shadow: 0 0 20px rgba(200, 170, 110, 0.4);
 }
 
 header p {
@@ -31,6 +34,7 @@ header p {
   color: #888;
 }
 
+/* --- Search box --- */
 .search-box {
   position: relative;
   max-width: 480px;
@@ -46,9 +50,13 @@ header p {
   color: #e6e6e6;
   border-radius: 6px;
   outline: none;
+  transition: box-shadow 150ms ease, border-color 150ms ease;
 }
 
-.search-box input:focus { border-color: #c8aa6e; }
+.search-box input:focus {
+  border-color: #c8aa6e;
+  box-shadow: 0 0 0 2px rgba(200, 170, 110, 0.35);
+}
 
 .search-box ul {
   position: absolute;
@@ -61,18 +69,37 @@ header p {
   background: #1a1d23;
   border: 1px solid #333;
   border-radius: 6px;
-  max-height: 240px;
+  max-height: 320px;
   overflow-y: auto;
   z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .search-box li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 0.5rem 1rem;
   cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background 100ms ease, border-color 100ms ease;
 }
 
-.search-box li:hover { background: #2a2e36; }
+.search-box li.highlighted,
+.search-box li:hover {
+  background: #2a2e36;
+  border-left-color: #c8aa6e;
+}
 
+.search-box li img.option-portrait {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* --- Guess table --- */
 .guess-table {
   width: 100%;
   border-collapse: separate;
@@ -87,14 +114,36 @@ header p {
   font-weight: 500;
   font-size: 0.85rem;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .guess-table td {
-  padding: 0.75rem 0.5rem;
+  padding: 0.5rem;
   text-align: center;
   background: #1a1d23;
   border-radius: 4px;
   font-size: 0.9rem;
+  min-height: 72px;
+  vertical-align: middle;
+}
+
+.guess-table td.cell-portrait {
+  padding: 0.25rem;
+}
+
+.guess-table td.cell-portrait img {
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: 4px;
+  margin: 0 auto;
+  object-fit: cover;
+}
+
+.guess-table td.cell-portrait .champ-name {
+  font-size: 0.8rem;
+  margin-top: 4px;
+  color: #e6e6e6;
 }
 
 .cell-match { background: #2d6a4f !important; color: white; }
@@ -102,6 +151,20 @@ header p {
 .cell-nomatch { background: #6a1f1f !important; color: white; }
 .cell-higher, .cell-lower { background: #6a1f1f !important; color: white; }
 
+/* --- Flip reveal animation (newest row only) --- */
+.cell-reveal {
+  animation: flip-reveal 500ms ease-out both;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+@keyframes flip-reveal {
+  0%   { transform: rotateX(0deg);   }
+  50%  { transform: rotateX(90deg);  }
+  100% { transform: rotateX(0deg);   }
+}
+
+/* --- Win banner --- */
 .win-banner {
   text-align: center;
   padding: 2rem;
@@ -109,6 +172,26 @@ header p {
   border-radius: 8px;
   margin: 1rem auto;
   max-width: 480px;
+  box-shadow: 0 0 40px rgba(200, 170, 110, 0.2);
+}
+
+.win-banner.appearing {
+  animation: scale-in 350ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes scale-in {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.win-banner img.target-portrait {
+  width: 180px;
+  height: 180px;
+  border: 4px solid #c8aa6e;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  box-shadow: 0 0 30px rgba(200, 170, 110, 0.45);
+  object-fit: cover;
 }
 
 .win-banner button {
@@ -121,8 +204,16 @@ header p {
   font-weight: 600;
   cursor: pointer;
   font-size: 1rem;
+  animation: pulse 2s infinite;
 }
 
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(200, 170, 110, 0.7); }
+  70%  { box-shadow: 0 0 0 12px rgba(200, 170, 110, 0);   }
+  100% { box-shadow: 0 0 0 0   rgba(200, 170, 110, 0);    }
+}
+
+/* --- Error banner --- */
 .error {
   background: #6a1f1f;
   color: white;
