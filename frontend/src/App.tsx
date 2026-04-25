@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
-import './styles.css';
-import { createGame, listChampions, submitGuess } from './api/client';
-import { FALLBACK_VERSION, fetchLatestVersion } from './api/portrait';
-import type { ChampionListItem, GuessResponse } from './api/types';
-import { SearchBox } from './components/SearchBox';
-import { GuessTable } from './components/GuessTable';
-import { WinBanner } from './components/WinBanner';
+import { useEffect, useState } from "react";
+import "./styles.css";
+import { createGame, listChampions, submitGuess } from "./api/client";
+import { FALLBACK_VERSION, fetchLatestVersion } from "./api/portrait";
+import type { ChampionListItem, GuessResponse } from "./api/types";
+import { SearchBox } from "./components/SearchBox";
+import { GuessTable } from "./components/GuessTable";
+import { WinBanner } from "./components/WinBanner";
 
 export function App() {
   const [champions, setChampions] = useState<ChampionListItem[]>([]);
@@ -16,9 +16,12 @@ export function App() {
 
   useEffect(() => {
     fetchLatestVersion().then(setVersion);
-    listChampions().then(setChampions).catch((e) => setError(String(e)));
+    listChampions()
+      .then(setChampions)
+      .catch((e) => setError(String(e)));
     void startNewGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    console.log("App mounted, starting new game and fetching champions");
   }, []);
 
   async function startNewGame() {
